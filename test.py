@@ -74,7 +74,7 @@ def get_image_patches(fixations,labels):
                 patch = painting_img[top:bottom,left:right,:].astype(np.float32)
                 patch_batch.append( patch )
                 label_batch.append( label )
-
+                import pdb;pdb.set_trace()
                 if len(patch_batch) == CONFIGS["BATCH_SIZE"]:
                     # fa.info("Batch index of {0} of image patches yielded.".format(batch_index))
                     # fa.debug("length of batch:{0}.".format(len(patch_batch)))
@@ -108,6 +108,7 @@ def extract_features(fixations,labels):
         batch_index+=1
         all_features.append(features)
         all_labels.extend(label_batch)
+
 
     fa.info("all neural net features extracted for algorithm type {0}".format(CONFIGS['ALGORITHM_TYPE']))
 
