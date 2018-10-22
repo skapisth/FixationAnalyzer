@@ -10,7 +10,7 @@ N_Kernel_Choices = [5, 20, 60, 100, 200, 500]
 class FisherVectorExtraction(object):
   def __init__(self, n_kernels=1, covariance_type='diag', reg_covar=1e-6):
     assert covariance_type in ['diag', 'full']
-    assert n_kernels > 0()
+    assert n_kernels > 0
 
 
     self.n_kernels = n_kernels
@@ -30,16 +30,33 @@ class FisherVectorExtraction(object):
     :return: fitted Fisher vector object
     """
 
+    all_feats = []
+    max_size = max([a.shape[0] for a in X])
+    num_features = X[0].shape[1]
+    for i in range(len(X)):
+        features_array_init = np.zeros([max_size,num_features])
+        #import pdb;pdb.set_trace()
+        feat = X[i][0]
+        features_array_init[0:feat.shape[0],:] = feat
+        feats = np.reshape(features_array_init,(1,features_array_init.shape[0],features_array_init.shape[1]))
+        all_feats.append(feats)
+    # import pdb;pdb.set_trace()
+    X = np.vstack(all_feats)
+    #import pdb;pdb.set_trace()
+    #X = np.reshape(X,(1,X.shape[0],X.shape[1]))
     if X.ndim == 4:
       self.ndim = 4
       return self._fit(X, model_dump_path=model_dump_path, verbose=verbose)
 
     elif X.ndim == 3:
+      # import pdb;pdb.set_trace()
       self.ndim = 3
+      # import pdb;pdb.set_trace()
       X = np.reshape(X, [1] + list(X.shape))
       return self._fit(X, model_dump_path=model_dump_path, verbose=verbose)
 
     else:
+      # import pdb;pdb.set_trace()
       raise AssertionError("X must be an ndarray with 3 or 4 dimensions")
 
   def fit_by_bic(self, X, choices_n_kernels=N_Kernel_Choices, model_dump_path=None, verbose=True):
@@ -76,6 +93,18 @@ class FisherVectorExtraction(object):
                  if X.ndim is 4 then returns ndarray of shape (n_videos, n_frames, 2*n_kernels, n_feature_dim)
                  if X.ndim is 3 then returns ndarray of shape (n_images, 2*n_kernels, n_feature_dim)
    """
+   all_feats = []
+   max_size = max([a.shape[0] for a in X])
+   num_features = X[0].shape[1]
+   for i in range(len(X)):
+       features_array_init = np.zeros([max_size,num_features])
+       feat = X[i][0]
+       features_array_init[0:feat.shape[0],:] = feat
+       feats = np.reshape(features_array_init,(1,features_array_init.shape[0],features_array_init.shape[1]))
+       all_feats.append(feats)
+   #import pdb;pdb.set_trace()
+   X = np.vstack(all_feats)
+
    if X.ndim == 4:
      return self._predict(X, normalized=normalized)
 
@@ -83,6 +112,7 @@ class FisherVectorExtraction(object):
      orig_shape = X.shape
      X = np.reshape(X, [1] + list(X.shape))
      result = self._predict(X, normalized=normalized)
+     #import pdb;pdb.set_trace()
      return np.reshape(result, (orig_shape[0], 2 * self.n_kernels, orig_shape[-1]))
 
    else:

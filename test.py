@@ -6,6 +6,7 @@ import fixationanalyzer as fa
 from fixationanalyzer import FeatureExtractor
 from fixationanalyzer import FisherVectorExtraction
 from fixationanalyzer import SVM_Classifier
+from fixationanalyzer import DNNClassifier
 from sklearn.decomposition import PCA
 from datetime import datetime
 import tensorflow as tf
@@ -40,7 +41,7 @@ def get_image_patches(fixations,labels):
     """
 
     patch_batch = []
-    label_batch = []
+    #label_batch = []
     batch_index = 1
     for paintings,label in zip(fixations,labels):
         for painting_id,painting_fixations in paintings.items():
@@ -57,6 +58,7 @@ def get_image_patches(fixations,labels):
             max_bottom = height - math.ceil(CONFIGS['PATCH_LENGTH']/2)
 
             for i,fix in enumerate(painting_fixations):
+
                 #throwing away fixation data that is close to the image border
                 X,Y = fix['X'],fix['Y']
                 if X<max_left:
@@ -73,20 +75,17 @@ def get_image_patches(fixations,labels):
                 bottom = Y + (CONFIGS["PATCH_LENGTH"] - CONFIGS["PATCH_LENGTH"]//2)
                 patch = painting_img[top:bottom,left:right,:].astype(np.float32)
                 patch_batch.append( patch )
-                label_batch.append( label )
-                import pdb;pdb.set_trace()
-                if len(patch_batch) == CONFIGS["BATCH_SIZE"]:
-                    # fa.info("Batch index of {0} of image patches yielded.".format(batch_index))
-                    # fa.debug("length of batch:{0}.".format(len(patch_batch)))
-                    batch_index+=1
-                    yield (patch_batch,label_batch)
-                    patch_batch = []
-                    label_batch = []
+                #label_batch.append( label )
 
-    if len(patch_batch) > 0:
-        # fa.info("Batch index of {0} of image patches yielded.".format(batch_index))
-        batch_index+=1
-        yield (patch_batch,label_batch)
+            if len(patch_batch) > 100:
+                patch_batch = patch_batch[0:100]
+                yield (patch_batch,label)
+
+            if patch_batch != [] and len(patch_batch) < 100:
+                # import pdb;pdb.set_trace()
+                yield (patch_batch,label)
+
+            patch_batch = []
 
 
 def extract_features(fixations,labels):
@@ -98,22 +97,28 @@ def extract_features(fixations,labels):
 
     all_features = []
     all_labels = []
-    batch_index = 1
+    # batch_index = 1
     # with tf.device("/gpu:0"):
+
     for batch,label_batch in patch_gen:
+        #import pdb;pdb.set_trace()
         if CONFIGS['ALGORITHM_TYPE'] == 'mfpa-cnn(L)':
             features = feature_extractor.extract_features_from_specific_layer(batch,CONFIGS["LAYER_IDX"])
         elif CONFIGS['ALGORITHM_TYPE'] == 'mfpa-cnn(H)':
             features = feature_extractor.extract_features(batch)
-        batch_index+=1
+        # batch_index+=1
+        # import pdb;pdb.set_trace()
+        #features = np.vstack(features)
+
+        #features = np.reshape(features,(1,features.shape[0],features.shape[1]))
         all_features.append(features)
-        all_labels.extend(label_batch)
+        all_labels.append(label_batch)
 
 
-    fa.info("all neural net features extracted for algorithm type {0}".format(CONFIGS['ALGORITHM_TYPE']))
+    fa.info("all neural net features belonging to each participant viewing each painting is extracted for algorithm type {0}".format(CONFIGS['ALGORITHM_TYPE']))
+    #import pdb;pdb.set_trace()
 
-    all_features = np.vstack(all_features)
-
+    #all_features = np.vstack(all_features)
     return all_features,all_labels
 
 
@@ -159,17 +164,19 @@ def test(configs):
             #generate features on data
 
             train_features,train_labels = extract_features(train_fixations,train_labels)
-            train_features = np.expand_dims(train_features,axis=1)
+            #train_features = np.expand_dims(train_features,axis=1)
             test_features,test_labels = extract_features(test_fixations,test_labels)
-            test_features = np.expand_dims(test_features,axis=1)
+            #test_features = np.expand_dims(test_features,axis=1)
 
             fisher_vector_extraction = FisherVectorExtraction(CONFIGS['N_KERNELS'], CONFIGS['COVARIANCE_TYPE'], CONFIGS['REG_COVAR'])
             fa.info("Fitting GMM on train set. ",'(fold={},permutation={})'.format(k,CONFIGS['PERM_IDX']))
             fisher_vector_extraction.fit(train_features)
             fa.info("Predicting Fisher Vectors on Train set. ",'(fold={},permutation={})'.format(k,CONFIGS['PERM_IDX']))
             train_fisher_vectors = fisher_vector_extraction.predict(train_features)
+            train_fisher_vectors = np.reshape(train_fisher_vectors,(train_fisher_vectors.shape[0],train_fisher_vectors.shape[1]*train_fisher_vectors.shape[2]))
             fa.info("Predicting Fisher Vectors on Test set. ",'(fold={},permutation={})'.format(k,CONFIGS['PERM_IDX']))
             test_fisher_vectors = fisher_vector_extraction.predict(test_features)
+            test_fisher_vectors = np.reshape(test_fisher_vectors,(test_fisher_vectors.shape[0],test_fisher_vectors.shape[1]*test_fisher_vectors.shape[2]))
 
             #Reducing dimensions with pCA
             pca = PCA(n_components=CONFIGS['N_COMPONENTS_FOR_PCA'])
@@ -188,6 +195,11 @@ def test(configs):
             #                             CONFIGS['KERNEL_TYPE'])
             # accuracy = classifier.accuracy
 
+            if CONFIGS['CLASSIFICATION_TYPE'] == 'four':
+                num_classes = 4
+            else:
+                num_classes = 2
+
             classifier = DNNClassifier(train_fisher_vectors,
                                        train_labels,
                                        test_fisher_vectors,
@@ -195,14 +207,14 @@ def test(configs):
                                        CONFIGS['LEARNING_RATE'],
                                        num_classes,
                                        CONFIGS['BATCH_SIZE'],
-                                       loss=loss,
-                                       decay = decay,
-                                       momentum = momentum,
-                                       nesterov = nesterov,
-                                       activation_init = activation_init,
-                                       activation_final = activation_final,
-                                       dropout = dropout,
-                                       n_epochs = n_epochs)
+                                       loss='sparse_categorical_crossentropy',
+                                       decay = 1e-6,
+                                       momentum = 0.9,
+                                       nesterov = True,
+                                       activation_init = 'relu',
+                                       activation_final = 'softmax',
+                                       dropout = 0.5,
+                                       n_epochs = 10)
             accuracy = classifier.accuracy
             accuracies_k_folds.append(accuracy)
 

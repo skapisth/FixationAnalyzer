@@ -1,6 +1,6 @@
-FIXATION_FILENAME : ['./clean_data_trial.csv']
+FIXATION_FILENAME : ['./clean_data.csv']
 TRAINING_FRACTION : [.9]
-K_FOLDS : [2]
+K_FOLDS : [10]
 CLASSIFICATION_TYPE : ['exp_v_nov','inst_v_ninst','four']
 IMAGE_DIR : ['./images']
 ALGORITHM_TYPE : ['mfpa-cnn(L)']

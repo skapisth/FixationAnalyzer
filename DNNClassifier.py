@@ -42,7 +42,7 @@ class DNNClassifier(object):
         self.batch_size = batch_size
         self.model_build()
         self.compile_model()
-        self.accuracy,self.predictions = self.fit_evalaute_predict()
+        self.accuracy,self.predictions = self.fit_evaluate_predict()
 
 
     def model_build(self):
@@ -51,17 +51,17 @@ class DNNClassifier(object):
         self.model.add(Dropout(0.5))
         self.model.add(Dense(512, activation=self.activation_init))
         self.model.add(Dropout(0.5))
-        self.model.add(Dense(self.num_classes, self.activation=activation_final))
+        self.model.add(Dense(self.num_classes, activation=self.activation_final))
         return self.model
 
     def compile_model(self):
         self.sgd = SGD(lr=self.lr, decay=self.decay, momentum=self.momentum, nesterov=True)
-        self.model.compile(loss=self.loss,optimizer=sgd,metrics=['accuracy'])
+        self.model.compile(loss=self.loss,optimizer='sgd',metrics=['accuracy'])
         return self.model
 
 
     def fit_evaluate_predict(self):
-        self.model.fit(x_train, y_train,epochs=20,batch_size=128)
-        score = self.model.evaluate(self.test_data, self.test_labels, batch_size=self.batch_size)
-        predictions = self.model.predict(self.train_data,batch_size=self.batch_size,verbose=0)
+        self.model.fit(x=self.train_data, y=self.train_labels,epochs=10,batch_size=128)
+        score = self.model.evaluate(x=self.test_data, y=self.test_labels, batch_size=self.batch_size)
+        predictions = self.model.predict(x=self.train_data,batch_size=self.batch_size,verbose=0)
         return score, predictions
