@@ -48,6 +48,7 @@ class DatasetManager(object):
         return train_data,train_labels, test_data, test_labels
 
     def rotate(self):
+        
         if self.num_rotations > self.num_chunks:
             raise RuntimeError("You can't rotate your dataset more times ({0}) than there are chunks ({1})!.".format(self.num_rotations,self.num_chunks))
         self.data_chunks.rotate()

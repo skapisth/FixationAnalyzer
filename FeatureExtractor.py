@@ -97,7 +97,7 @@ class FeatureExtractor(object):
                                                     self.kerasbackend.learning_phase()],
                                                     [self.model.layers[layer_idx].output])
         features = get_features([imgs,0])
-        
+
         batch_features = np.vsplit(features[0],features[0].shape[0])
         features = np.vstack( [arr.reshape(1,arr.size) for arr in batch_features] )
         return features
@@ -187,6 +187,11 @@ class FeatureExtractor(object):
         from keras import backend as kerasbackend
 
         return model, preprocess_fn, kerasbackend
+
+    def __del__(self):
+        del self.model
+        self.kerasbackend.clear_session()
+
 
 
 # END

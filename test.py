@@ -14,24 +14,7 @@ import time
 
 
 CONFIGS = {}
-# CONFGIS["FIXATION_FILENAME"] = './clean_data.csv'
-# CONFGIS["TRAINING_FRACTION"] = .7
-# CONFGIS["K_FOLDS"] = 10
-# CONFGIS["CLASSIFICATION_TYPE"] = 'exp_v_nov'
-# CONFGIS["IMAGE_DIR"] = './images'
-# CONFGIS["ALGORITHM_TYPE"] = 'mfpa-cnn(L)'
-# CONFGIS["PATCH_LENGTH"] = 9
-# CONFGIS["BATCH_SIZE"] = 60
-# CONFGIS["NETWORK_NAME"] = 'resnet50'
-# CONFGIS["POOLING_TYPE"] = 'avg'
-# CONFGIS["LAYER_IDX"] = 2
-# CONFGIS["N_KERNELS"] = 5
-# CONFGIS["COVARIANCE_TYPE"] = 'diag'
-# CONFGIS["REG_COVAR"] = 1e-5
-# CONFGIS["N_COMPONENTS_FOR_PCA"] = 256
-# CONFGIS["KERNEL_TYPE"] = 'rbf'
-# CONFGIS["C"] = 1
-# CONFGIS["DECISION_FUNCTION_TYPE"] = 'ovr' if CONFGIS["CLASSIFICATION_TYPE"] != 'four' else 'ovo'
+
 
 IMG_CACHE = {}
 def get_image_patches(fixations,labels):
@@ -119,6 +102,7 @@ def extract_features(fixations,labels):
     #import pdb;pdb.set_trace()
 
     #all_features = np.vstack(all_features)
+    del feature_extractor
     return all_features,all_labels
 
 
@@ -155,22 +139,33 @@ def test(configs):
                                         classification_type=CONFIGS["CLASSIFICATION_TYPE"])
 
     accuracies_k_folds = []
+
+
+
     for k in range(CONFIGS["K_FOLDS"]):
         k += 1
-        train_fixations,train_labels,test_fixations,test_labels = dataset_manager.get_train_test()
 
+        startTime = time.time()
+        train_fixations,train_labels,test_fixations,test_labels = dataset_manager.get_train_test()
+        stopTime = time.time()
+        print ("Time: " + str(stopTime - startTime))
 
         if CONFIGS["ALGORITHM_TYPE"] in ['mfpa-cnn(L)','mfpa-cnn(H)']:
-            #generate features on data
 
+            #generate features on data
+            startTime = time.time()
             train_features,train_labels = extract_features(train_fixations,train_labels)
             #train_features = np.expand_dims(train_features,axis=1)
             test_features,test_labels = extract_features(test_fixations,test_labels)
             #test_features = np.expand_dims(test_features,axis=1)
-
+            stopTime = time.time()
+            print ("Time: " + str(stopTime - startTime))
+            startTime = time.time()
             fisher_vector_extraction = FisherVectorExtraction(CONFIGS['N_KERNELS'], CONFIGS['COVARIANCE_TYPE'], CONFIGS['REG_COVAR'])
             fa.info("Fitting GMM on train set. ",'(fold={},permutation={})'.format(k,CONFIGS['PERM_IDX']))
             fisher_vector_extraction.fit(train_features)
+            stopTime = time.time()
+            print ("Time: " + str(stopTime - startTime))
             fa.info("Predicting Fisher Vectors on Train set. ",'(fold={},permutation={})'.format(k,CONFIGS['PERM_IDX']))
             train_fisher_vectors = fisher_vector_extraction.predict(train_features)
             train_fisher_vectors = np.reshape(train_fisher_vectors,(train_fisher_vectors.shape[0],train_fisher_vectors.shape[1]*train_fisher_vectors.shape[2]))
@@ -199,7 +194,8 @@ def test(configs):
                 num_classes = 4
             else:
                 num_classes = 2
-
+            #import pdb;pdb.set_trace()
+            startTime = time.time()
             classifier = DNNClassifier(train_fisher_vectors,
                                        train_labels,
                                        test_fisher_vectors,
@@ -215,10 +211,14 @@ def test(configs):
                                        activation_final = 'softmax',
                                        dropout = 0.5,
                                        n_epochs = 10)
+            #import pdb;pdb.set_trace()
             accuracy = classifier.accuracy
             accuracies_k_folds.append(accuracy)
-
+            stopTime = time.time()
+            print ("Time: " + str(stopTime - startTime))
+        #
         dataset_manager.rotate()
+
 
     k_fold_classification_accuracy_with_mean = np.mean(accuracies_k_folds)
     k_fold_classification_accuracy_with_std = np.std(accuracies_k_folds)*2
